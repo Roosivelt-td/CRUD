@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-8" x-data="{
+    openBuyModal: false,
+    selectedProduct: { id: '', name: '', price: 0, stock: 0 },
+    buyProduct(product) {
+        this.selectedProduct = { ...product };
+        this.openBuyModal = true;
+    }
+}">
+
+    <!-- Store Welcome & Search Bar -->
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div>
+            <h2 class="text-2xl font-bold text-slate-900">Catálogo de Productos</h2>
+            <p class="text-sm text-slate-500">Explora nuestros productos y realiza tus compras al instante (sin registro obligatorio).</p>
+        </div>
+
+        <form method="GET" action="/" class="flex w-full sm:w-80 gap-2">
+            <input type="text" name="search" value="{{ search }}" placeholder="Buscar productos..."
+                class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+            <button type="submit" class="bg-slate-800 text-white px-4 py-2 rounded-xl hover:bg-slate-700 text-sm font-medium transition">
+                Buscar
+            </button>
+            {% if search %}
+            <a href="/" class="bg-slate-200 text-slate-700 px-3 py-2 rounded-xl hover:bg-slate-300 text-sm font-medium flex items-center justify-center">
+                Limpiar
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Products Grid (Catalog) - Public View -->
+    <div class="space-y-4">
+        <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            🛍️ Productos Disponibles
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% if products %}
+                {% for p in products %}
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col justify-between hover:shadow-md transition">
+                    <div>
+                        <div class="relative h-48 bg-slate-100 overflow-hidden">
+                            <img src="{{ p.image_url }}" alt="{{ p.name }}" class="w-full h-full object-cover">
+                            <div class="absolute top-3 right-3">
+                                {% if p.stock > 0 %}
+                                    <span class="px-2.5 py-1 text-xs font-bold bg-emerald-500 text-white rounded-full shadow">Stock: {{ p.stock }}</span>
+                                {% else %}
+                                    <span class="px-2.5 py-1 text-xs font-bold bg-rose-500 text-white rounded-full shadow">Agotado</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="p-5 space-y-2">
+                            <h4 class="font-bold text-lg text-slate-900">{{ p.name }}</h4>
+                            <p class="text-slate-500 text-xs line-clamp-2">{{ p.description or 'Sin descripción disponible.' }}</p>
+                            <div class="text-xl font-extrabold text-indigo-600 pt-2">${{ "%.2f"|format(p.price) }}</div>
+                        </div>
+                    </div>
+                    <div class="p-5 pt-0">
+                        {% if p.stock > 0 %}
+                            <button @click="buyProduct({ id: {{ p.id }}, name: decodeURIComponent('{{ p.name | urlencode }}'), price: {{ p.price }}, stock: {{ p.stock }} })"
+                                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2">
+                                Comprar Ahora
+                            </button>
+                        {% else %}
+                            <button disabled class="w-full bg-slate-200 text-slate-400 font-semibold py-2.5 px-4 rounded-xl text-sm cursor-not-allowed">
+                                No disponible
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-100">
+                    No hay productos disponibles en este momento.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- My Purchases History Section (Only for Logged Users) -->
+    {% if user %}
+    <div class="space-y-4 pt-6">
+        <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            🧾 Historial de Mis Compras
+        </h3>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">
+                            <th class="py-3 px-6">Orden #</th>
+                            <th class="py-3 px-6">Producto</th>
+                            <th class="py-3 px-6">Cantidad</th>
+                            <th class="py-3 px-6">Total Pagado</th>
+                            <th class="py-3 px-6">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 text-sm">
+                        {% if my_orders %}
+                            {% for o in my_orders %}
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="py-4 px-6 font-medium text-slate-900">#{{ o.id }}</td>
+                                <td class="py-4 px-6 text-slate-800">{{ o.product.name if o.product else 'Producto Eliminado' }}</td>
+                                <td class="py-4 px-6 text-slate-600 font-medium">{{ o.quantity }}</td>
+                                <td class="py-4 px-6 font-bold text-emerald-600">${{ "%.2f"|format(o.total_price) }}</td>
+                                <td class="py-4 px-6 text-slate-500 text-xs">{{ o.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-slate-400">
+                                    Aún no has realizado ninguna compra con tu cuenta.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Buy Modal -->
+    <div x-show="openBuyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" x-cloak>
+        <div @click.outside="openBuyModal = false" class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6 space-y-4 border border-slate-100">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-800">Comprar: <span x-text="selectedProduct.name" class="text-indigo-600"></span></h3>
+                <button @click="openBuyModal = false" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+            </div>
+            <form action="/user/buy" method="POST" class="space-y-4">
+                <input type="hidden" name="product_id" x-model="selectedProduct.id">
+
+                {% if user %}
+                <div class="bg-indigo-50 p-3 rounded-xl text-sm text-indigo-700">
+                    Comprando como: <b>{{ user.username }}</b>
+                </div>
+                {% else %}
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Tu Nombre / Cliente</label>
+                    <input type="text" name="buyer_name" required placeholder="Ej. Juan Pérez" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+                {% endif %}
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Cantidad a Comprar (Stock disponible: <span x-text="selectedProduct.stock"></span>)</label>
+                    <input type="number" name="quantity" value="1" min="1" :max="selectedProduct.stock" required class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+                <div class="bg-slate-50 p-3 rounded-xl flex justify-between items-center text-sm font-semibold text-slate-700">
+                    <span>Precio Unitario:</span>
+                    <span class="text-indigo-600" x-text="`$${Number(selectedProduct.price).toFixed(2)}`"></span>
+                </div>
+                <div class="flex justify-end gap-3 pt-3 border-t">
+                    <button type="button" @click="openBuyModal = false" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 text-sm font-medium">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-sm font-medium">Confirmar Compra</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
